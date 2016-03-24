@@ -20,6 +20,7 @@ fi
 
 echo sudo qemu-system-x86_64 -enable-kvm -monitor stdio -soundhw hda \
   -m 2048 \
+  -serial stdio \
   -name "$vm" \
   -vnc 127.0.0.1:`vnc_screen "$vm"` \
   -netdev user,id=ipnet,net=10.0.2.0,restrict=off \
