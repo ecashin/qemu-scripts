@@ -6,6 +6,7 @@ vm="${1?}"
 assertions "$vm"
 ensure_host
 ensure_tap "$vm"
+route add -host `tap_ip "$vm"` `bridge "$vm"`
 
 # Borrow VNC screen to build MAC addr.
 hwnet=`vnc_screen "$vm"`
