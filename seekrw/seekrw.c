@@ -21,12 +21,13 @@
  *
  */
 #define _FILE_OFFSET_BITS 64
+#define _GNU_SOURCE		/* for O_DIRECT */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -34,6 +35,7 @@ const char *usage = "usage:\n"
 	"\t[nx={transfer}] "
 	"[iseek={input seek}] "
 	"[oseek={output seek}] "
+	"[direct={1 for direct I/O}] "
 	"seekrw [output filename]\n"
 	"(all numbers are in bytes with 0 default)\n"
 	"Standard input and output are used by default.\n"
@@ -57,7 +59,7 @@ envchk(off_t *val, const char *nam)
 			p, nam);
 		if (errno)
 			perror("strtoll");
-		fprintf(stderr, usage);
+		fputs(usage, stderr);
 		exit(EXIT_FAILURE);
 	}
 
@@ -111,15 +113,20 @@ io(int fd, char *buf, size_t n, int rw)
  */
 void xfer(off_t nx, int rdfd, int wrfd)
 {
-	char buf[1024*4];
+	char *buf;
 	size_t n;
 
+	if ((errno = posix_memalign((void **) &buf, 4*1024, 4*1024)) || !buf) {
+		perror("posix_memalign");
+		exit(EXIT_FAILURE);
+	}
 	for (; nx > 0; nx -= n) {
 		n = nx > sizeof buf ? sizeof buf : nx;
 
 		io(rdfd, buf, n, READ);
 		io(wrfd, buf, n, WRITE);
 	}
+	free(buf);
 }
 
 void output_cfg(void)
@@ -144,21 +151,34 @@ void output_cfg(void)
 
 int main(int argc, char *argv[])
 {
-	off_t iseek, oseek, nx;
+	off_t iseek, oseek, rd_direct, wr_direct, nx;
+	int rdfd = STDIN_FILENO;
 	int wrfd = STDOUT_FILENO;
 
-	(void) argv;
+	rd_direct = wr_direct = 0;
+	envchk(&rd_direct, "rd_direct");
+	envchk(&wr_direct, "wr_direct");
+	if (rd_direct)
+		rd_direct = O_DIRECT;
+	if (wr_direct)
+		wr_direct = O_DIRECT;
+	fprintf(stderr, "debug: rd_direct(%lu) wr_direct(%lu)\n",
+		rd_direct,
+		wr_direct);
 
-	if (argc > 2) {
-		fputs(usage, stderr);
-		exit(EXIT_FAILURE);
-	}
-	if (argc == 2) {
-		if (!strcmp(argv[1], "-h")) {
+	if (argc >= 2) {
+		if (argc > 3 || !strcmp(argv[1], "-h")) {
 			fputs(usage, stderr);
+			exit(EXIT_SUCCESS);
+		}
+		rdfd = open(argv[1], O_RDONLY | (O_DIRECT & rd_direct));
+		if (rdfd == -1) {
+			perror("open to read");
 			exit(EXIT_FAILURE);
 		}
-		wrfd = open(argv[1], O_WRONLY);
+	}
+	if (argc == 3) {
+		wrfd = open(argv[2], O_WRONLY | (O_DIRECT & wr_direct));
 		if (wrfd == -1) {
 			perror("open to write");
 			exit(EXIT_FAILURE);
@@ -173,12 +193,12 @@ int main(int argc, char *argv[])
 	output_cfg();
 
 	if (iseek)
-		xlseek(STDIN_FILENO, iseek);
+		xlseek(rdfd, iseek);
 
 	if (oseek)
 		xlseek(wrfd, oseek);
 
-	xfer(nx, STDIN_FILENO, wrfd);
+	xfer(nx, rdfd, wrfd);
 
 	return 0;
 }
