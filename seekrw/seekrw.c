@@ -18,9 +18,9 @@
  *	nx	number of bytes to transfer
  *
  * (The dd command doesn't always really seek, but seekrw does.)
- * 
+ *
  */
-#define _FILE_OFFSET_BITS 64 
+#define _FILE_OFFSET_BITS 64
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -101,10 +101,10 @@ io(int fd, char *buf, size_t n, int rw)
 			fprintf(stderr, "seekrw: zero %s\n", ionam);
 			exit(EXIT_FAILURE);
 		}
-		
+
 		n -= x;
 		buf += x;
-	}		
+	}
 }
 
 /* nx is in bytes
@@ -139,7 +139,7 @@ void output_cfg(void)
 		fprintf(stderr, "seekrw Error: could not dup %d: %s\n",
 			fd, strerror(errno));
 		exit(EXIT_FAILURE);
-	}		
+	}
 }
 
 int main(int argc, char *argv[])
