@@ -35,7 +35,7 @@ assertions() {
 
 ensure_bridge() {
     br="${1?}"
-    if !sudo brctl showstp "$br" > /dev/null 2>&1; then
+    if ! sudo brctl showstp "$br" > /dev/null 2>&1; then
 	echo sudo brctl addbr "$br"
 	echo sudo ifconfig "$br" up
     fi
